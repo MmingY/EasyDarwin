@@ -3,6 +3,7 @@ package utils
 import (
 	"os"
 	"syscall"
+	//  "fmt"
 )
 
 // RedirectStderr to the file passed in
@@ -11,6 +12,7 @@ func RedirectStderr() (err error) {
 	if err != nil {
 		return
 	}
+	// fmt.Errorf("dup2 is not supported on this platform")
 	err = syscall.Dup2(int(logFile.Fd()), int(os.Stderr.Fd()))
 	if err != nil {
 		return

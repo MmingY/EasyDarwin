@@ -372,7 +372,7 @@ func (client *RTSPClient) startStream() {
 		case 0x24: // rtp
 			header := make([]byte, 4)
 			header[0] = b
-			_, err := io.ReadFull(client.connRW, header[1:])
+			_, err = io.ReadFull(client.connRW, header[1:])
 			if err != nil {
 
 				if !client.Stoped {
@@ -416,10 +416,6 @@ func (client *RTSPClient) startStream() {
 				}
 			default:
 				client.logger.Printf("unknow rtp pack type, channel:%v", channel)
-				continue
-			}
-			if pack == nil {
-				client.logger.Printf("session tcp got nil rtp pack")
 				continue
 			}
 
@@ -639,7 +635,7 @@ func (client *RTSPClient) RequestWithPath(method string, path string, headers ma
 		//		return
 		//	}
 		//}
-		if strings.Index(s, "Content-Length:") == 0 {
+		if strings.Index(strings.ToLower(s), "content-length:") == 0 {
 			splits := strings.Split(s, ":")
 			contentLen, err = strconv.Atoi(strings.TrimSpace(splits[1]))
 			if err != nil {
@@ -664,8 +660,10 @@ func (client *RTSPClient) Request(method string, headers map[string]string) (*Re
 }
 
 func (client *RTSPClient) RequestNoResp(method string, headers map[string]string) (err error) {
-	l, err := url.Parse(client.URL)
-	if err != nil {
+	var (
+		l *url.URL
+	)
+	if l, err = url.Parse(client.URL); err != nil {
 		return fmt.Errorf("Url parse error:%v", err)
 	}
 	l.User = nil

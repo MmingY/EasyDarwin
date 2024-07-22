@@ -83,8 +83,7 @@ func (h *APIHandler) RecordFolders(c *gin.Context) {
  * @api {get} /api/v1/record/files 获取所有录像文件
  * @apiGroup record
  * @apiName RecordFiles
- * @apiParam {String} folder 录像文件所在的文件夹
- * @apiParam {String} folder 录像文件所在的文件夹
+ * @apiParam {Number} folder 录像文件所在的文件夹
  * @apiParam {Number} [start] 分页开始,从零开始
  * @apiParam {Number} [limit] 分页大小
  * @apiParam {String} [sort] 排序字段
@@ -97,7 +96,6 @@ func (h *APIHandler) RecordFolders(c *gin.Context) {
  * @apiSuccess (200) {String} rows.path 录像文件的相对路径,录像文件为m3u8格式，将其放到video标签中便可直接播放。其绝对路径为：http[s]://host:port/record/[path]。
  */
 func (h *APIHandler) RecordFiles(c *gin.Context) {
-
 	type Form struct {
 		utils.PageForm
 		Folder  string `form:"folder" binding:"required"`
@@ -141,15 +139,9 @@ func (h *APIHandler) RecordFiles(c *gin.Context) {
 				if info.Name() == ".DS_Store" {
 					return nil
 				}
-
-				/*if !strings.HasSuffix(strings.ToLower(info.Name()), ".m3u8") && !strings.HasSuffix(strings.ToLower(info.Name()), ".ts") {
-					return nil
-				}*/
-
-				if !strings.HasSuffix(strings.ToLower(info.Name()), ".m3u8") {
+				if !strings.HasSuffix(strings.ToLower(info.Name()), ".m3u8") && !strings.HasSuffix(strings.ToLower(info.Name()), ".ts") {
 					return nil
 				}
-
 				cmd := exec.Command(ffprobe, "-i", path)
 				cmdOutput := &bytes.Buffer{}
 				//cmd.Stdout = cmdOutput

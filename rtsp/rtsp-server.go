@@ -27,29 +27,35 @@ type Server struct {
 	removePusherCh chan *Pusher
 }
 
-var Instance *Server = &Server{
-	SessionLogger:  SessionLogger{log.New(os.Stdout, "[RTSPServer]", log.LstdFlags|log.Lshortfile)},
-	Stoped:         true,
-	TCPPort:        utils.Conf().Section("rtsp").Key("port").MustInt(554),
-	pushers:        make(map[string]*Pusher),
-	addPusherCh:    make(chan *Pusher),
-	removePusherCh: make(chan *Pusher),
-}
-
-var HttpClient *Media = NewsSyncStream()
+var (
+	instance *Server
+	once sync.Once
+)
 
 func GetServer() *Server {
-	return Instance
+	once.Do(func() {
+		instance = &Server{
+			SessionLogger:  SessionLogger{log.New(os.Stdout, "[RTSPServer]", log.LstdFlags|log.Lshortfile)},
+			Stoped:         true,
+			TCPPort:        utils.Conf().Section("rtsp").Key("port").MustInt(554),
+			pushers:        make(map[string]*Pusher),
+			addPusherCh:    make(chan *Pusher),
+			removePusherCh: make(chan *Pusher),
+		}
+	})
+	return instance
 }
 
 func (server *Server) Start() (err error) {
-	logger := server.logger
-	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", server.TCPPort))
-	if err != nil {
+	var (
+		logger   = server.logger
+		addr     *net.TCPAddr
+		listener *net.TCPListener
+	)
+	if addr, err = net.ResolveTCPAddr("tcp", fmt.Sprintf(":%d", server.TCPPort)); err != nil {
 		return
 	}
-	listener, err := net.ListenTCP("tcp", addr)
-	if err != nil {
+	if listener, err = net.ListenTCP("tcp", addr); err != nil {
 		return
 	}
 
@@ -59,7 +65,7 @@ func (server *Server) Start() (err error) {
 	ts_duration_second := utils.Conf().Section("rtsp").Key("ts_duration_second").MustInt(6)
 	SaveStreamToLocal := false
 	if (len(ffmpeg) > 0) && localRecord > 0 && len(m3u8_dir_path) > 0 {
-		err := utils.EnsureDir(m3u8_dir_path)
+		err = utils.EnsureDir(m3u8_dir_path)
 		if err != nil {
 			logger.Printf("Create m3u8_dir_path[%s] err:%v.", m3u8_dir_path, err)
 		} else {
@@ -78,10 +84,9 @@ func (server *Server) Start() (err error) {
 		for addChnOk || removeChnOk {
 			select {
 			case pusher, addChnOk = <-server.addPusherCh:
-				fmt.Println("录像：", pusher.Path())
 				if SaveStreamToLocal {
-					if addChnOk { //2006-01-02 15:04:05
-						dir := path.Join(m3u8_dir_path, pusher.Path(), time.Now().Format("20060102150405"))
+					if addChnOk {
+						dir := path.Join(m3u8_dir_path, pusher.Path(), time.Now().Format("20060102"))
 						err := utils.EnsureDir(dir)
 						if err != nil {
 							logger.Printf("EnsureDir:[%s] err:%v.", dir, err)
@@ -90,8 +95,7 @@ func (server *Server) Start() (err error) {
 						m3u8path := path.Join(dir, fmt.Sprintf("out.m3u8"))
 						port := pusher.Server().TCPPort
 						rtsp := fmt.Sprintf("rtsp://localhost:%d%s", port, pusher.Path())
-						logger.Printf("一个录像地址： [%v]", rtsp)
-						paramStr := utils.Conf().Section("rtsp").Key(pusher.Path()).MustString("-c:v copy -c:a aac -strict -2")
+						paramStr := utils.Conf().Section("rtsp").Key(pusher.Path()).MustString("-c:v copy -c:a aac")
 						params := []string{"-fflags", "genpts", "-rtsp_transport", "tcp", "-i", rtsp, "-hls_time", strconv.Itoa(ts_duration_second), "-hls_list_size", "0", m3u8path}
 						if paramStr != "default" {
 							paramsOfThisPath := strings.Split(paramStr, " ")
@@ -117,28 +121,23 @@ func (server *Server) Start() (err error) {
 			case pusher, removeChnOk = <-server.removePusherCh:
 				if SaveStreamToLocal {
 					if removeChnOk {
-						logger.Printf("pusher:%#v", pusher)
 						cmd := pusher2ffmpegMap[pusher]
-						logger.Printf("cmd:%v", cmd)
-						if cmd != nil {
-							proc := cmd.Process
-							if proc != nil {
-								logger.Printf("prepare to SIGTERM to process:%v", proc)
-								proc.Signal(syscall.SIGTERM)
-								proc.Wait()
-								// proc.Kill()
-								// no need to close attached log file.
-								// see "Wait releases any resources associated with the Cmd."
-								// if closer, ok := cmd.Stdout.(io.Closer); ok {
-								// 	closer.Close()
-								// 	logger.Printf("process:%v Stdout closed.", proc)
-								// }
-								logger.Printf("process:%v terminate.", proc)
-							}
-							delete(pusher2ffmpegMap, pusher)
-							logger.Printf("delete ffmpeg from pull stream from pusher[%v]", pusher)
+						proc := cmd.Process
+						if proc != nil {
+							logger.Printf("prepare to SIGTERM to process:%v", proc)
+							proc.Signal(syscall.SIGTERM)
+							proc.Wait()
+							// proc.Kill()
+							// no need to close attached log file.
+							// see "Wait releases any resources associated with the Cmd."
+							// if closer, ok := cmd.Stdout.(io.Closer); ok {
+							// 	closer.Close()
+							// 	logger.Printf("process:%v Stdout closed.", proc)
+							// }
+							logger.Printf("process:%v terminate.", proc)
 						}
-
+						delete(pusher2ffmpegMap, pusher)
+						logger.Printf("delete ffmpeg from pull stream from pusher[%v]", pusher)
 					} else {
 						for _, cmd := range pusher2ffmpegMap {
 							proc := cmd.Process
@@ -160,16 +159,18 @@ func (server *Server) Start() (err error) {
 	logger.Println("rtsp server start on", server.TCPPort)
 	networkBuffer := utils.Conf().Section("rtsp").Key("network_buffer").MustInt(1048576)
 	for !server.Stoped {
-		conn, err := server.TCPListener.Accept()
-		if err != nil {
+		var (
+			conn net.Conn
+		)
+		if conn, err = server.TCPListener.Accept(); err != nil {
 			logger.Println(err)
 			continue
 		}
 		if tcpConn, ok := conn.(*net.TCPConn); ok {
-			if err := tcpConn.SetReadBuffer(networkBuffer); err != nil {
+			if err = tcpConn.SetReadBuffer(networkBuffer); err != nil {
 				logger.Printf("rtsp server conn set read buffer error, %v", err)
 			}
-			if err := tcpConn.SetWriteBuffer(networkBuffer); err != nil {
+			if err = tcpConn.SetWriteBuffer(networkBuffer); err != nil {
 				logger.Printf("rtsp server conn set write buffer error, %v", err)
 			}
 		}
@@ -212,9 +213,7 @@ func (server *Server) AddPusher(pusher *Pusher) bool {
 	if added {
 		go pusher.Start()
 		server.addPusherCh <- pusher
-		HttpClient.Chan <- []string{pusher.Path(), "add", time.Now().Format("20060102150405")}
 	}
-
 	return added
 }
 
@@ -247,9 +246,7 @@ func (server *Server) RemovePusher(pusher *Pusher) {
 	server.pushersLock.Unlock()
 	if removed {
 		server.removePusherCh <- pusher
-		HttpClient.Chan <- []string{pusher.Path(), "remove", time.Now().Format("20060102150405")}
 	}
-
 }
 
 func (server *Server) GetPusher(path string) (pusher *Pusher) {

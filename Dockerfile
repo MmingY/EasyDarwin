@@ -1,14 +1,16 @@
 FROM arm64v8/ubuntu:latest
-# FROM arm64v8/ubuntu:20.04
-# FROM linuxserver/ffmpeg:latest
 
 # 将清华大学的镜像源添加到 /etc/apt/sources.list 文件中//
 # RUN sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ca-certificates \
-    sed \
-    && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && \
+#     apt-get install -y --no-install-recommends \
+#     ca-certificates \
+#     sed \
+#     && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update
+RUN apt-get upgrade -y
+RUN apt-get install -y --no-install-recommends sed
 
 RUN sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
 

@@ -148,6 +148,7 @@ func Init() (err error) {
 		mp4Path := utils.Conf().Section("rtsp").Key("m3u8_dir_path").MustString("")
 		if len(mp4Path) != 0 {
 			Router.Use(static.Serve("/record", static.LocalFile(mp4Path, true)))
+			Router.GET("/record/download/*anyPath", API.RecordDownload)
 		}
 
 	}

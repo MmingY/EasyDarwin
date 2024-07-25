@@ -60,8 +60,8 @@ func (server *Server) Start() (err error) {
 	}
 
 	localRecord := utils.Conf().Section("rtsp").Key("save_stream_to_local").MustInt(2)
-	ffmpeg := utils.Conf().Section("rtsp").Key("ffmpeg_path").MustString("/usr/bin")
-	m3u8_dir_path := utils.Conf().Section("rtsp").Key("m3u8_dir_path").MustString("/opt/video")
+	ffmpeg := utils.Conf().Section("rtsp").Key("ffmpeg_path").MustString("")
+	m3u8_dir_path := utils.Conf().Section("rtsp").Key("m3u8_dir_path").MustString("")
 	ts_duration_second := utils.Conf().Section("rtsp").Key("ts_duration_second").MustInt(6)
 	SaveStreamToLocal := false
 	if (len(ffmpeg) > 0) && localRecord > 0 && len(m3u8_dir_path) > 0 {
@@ -86,17 +86,14 @@ func (server *Server) Start() (err error) {
 			case pusher, addChnOk = <-server.addPusherCh:
 				if SaveStreamToLocal {
 					if addChnOk {
-						dir := path.Join(m3u8_dir_path, pusher.Path(), time.Now().Format("20060102"))
+						dir := path.Join(m3u8_dir_path, pusher.Path(), time.Now().Format("20060102"), time.Now().Format("20060102150405"))
 						err := utils.EnsureDir(dir)
 						if err != nil {
 							logger.Printf("EnsureDir:[%s] err:%v.", dir, err)
 							continue
 						}
-						// 获取当前时间
-						currentTime := time.Now()
-						formattedTime := currentTime.Format("2006-01-02-15-04-05")
-						// m3u8path := path.Join(dir, fmt.Sprintf("out.m3u8"))
-						m3u8path := path.Join(dir, fmt.Sprintf(formattedTime+".m3u8"))
+
+						m3u8path := path.Join(dir, fmt.Sprintf("record.m3u8"))
 						port := pusher.Server().TCPPort
 						rtsp := fmt.Sprintf("rtsp://localhost:%d%s", port, pusher.Path())
 						paramStr := utils.Conf().Section("rtsp").Key(pusher.Path()).MustString("-c:v copy -c:a aac")
@@ -107,7 +104,7 @@ func (server *Server) Start() (err error) {
 						}
 						// ffmpeg -i ~/Downloads/720p.mp4 -s 640x360 -g 15 -c:a aac -hls_time 5 -hls_list_size 0 record.m3u8
 						//ffmpeg -fflags genpts -rtsp_transport tcp -i rtsp://localhost:554/live/1 -hls_time 6 -hls_list_size 0 -c:v copy -c:a aac ~/opt/video/record/20210825/out.m3u8
-						cmd := exec.Command(ffmpeg+"/ffmpeg", params...)
+						cmd := exec.Command(ffmpeg, params...)
 						f, err := os.OpenFile(path.Join(dir, fmt.Sprintf("log.txt")), os.O_RDWR|os.O_CREATE, 0755)
 						if err == nil {
 							cmd.Stdout = f

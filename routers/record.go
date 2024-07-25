@@ -2,8 +2,10 @@ package routers
 
 import (
 	"bytes"
+	"io"
 	"log"
 	"math"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"path"
 
 	"github.com/gin-gonic/gin"
 	"github.com/penggy/EasyGoLib/utils"
@@ -185,4 +189,64 @@ func (h *APIHandler) RecordFiles(c *gin.Context) {
 	}
 	pr.Slice(form.Start, form.Limit)
 	c.IndentedJSON(200, pr)
+}
+
+/**
+ * @api {get} /api/v1/record/vie0s 录像回放
+ * @apiGroup record
+ * @apiName RecordVie0s
+ */
+func (h *APIHandler) RecordDownload(c *gin.Context) {
+	ffmpeg := utils.Conf().Section("rtsp").Key("ffmpeg_path").MustString("")
+	m3u8_dir_path := utils.Conf().Section("rtsp").Key("m3u8_dir_path").MustString("")
+	// 提取 /user 之后的部分
+	// userPath := requestPath[len("/record/download/"):]
+	// userPath := strings.Replace(c.Request.URL.Path, "/record/download/", "", 1)
+	userPath := c.Param("anyPath")
+	pathslice := strings.Split(userPath, "/")
+	var fileName string
+	if len(pathslice[len(pathslice)-1]) == 0 {
+		fileName = pathslice[len(pathslice)-2]
+	} else {
+		fileName = pathslice[len(pathslice)-1]
+	}
+	// fileMp4 := m3u8_dir_path + userPath + fileName + ".mp4"
+	fileMp4 := path.Join(m3u8_dir_path, userPath, fileName+".mp4")
+	fileM3u8 := path.Join(m3u8_dir_path, userPath, "record.m3u8")
+	//ffmpeg -i input.m3u8 -c copy output.mp4
+	params := []string{"-i", fileM3u8, "-c", "copy", fileMp4}
+	cmd := exec.Command(ffmpeg, params...)
+	err := cmd.Start()
+	if err != nil {
+		log.Printf("Start ffmpeg err:%v", err)
+	}
+
+	//发送mp4文件给客户端
+	file, err := os.Open(fileMp4)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("Open mp4 err:%v", err)
+		return
+	}
+	defer file.Close()
+
+	// Get the file size and content type
+	fileInfo, err := file.Stat()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	fileSize := fileInfo.Size()
+	contentType := "video/mp4"
+
+	// Set the response headers
+	c.Header("Content-Disposition", "attachment; filename="+filepath.Base(fileMp4))
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Length", strconv.FormatInt(fileSize, 10))
+
+	// Send the file content
+	if _, err := io.Copy(c.Writer, file); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 }

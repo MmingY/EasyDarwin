@@ -9,6 +9,7 @@ const PusherList = () => import(/* webpackChunkName: 'pushers' */ 'components/Pu
 const PlayerList = () => import(/* webpackChunkName: 'players' */ 'components/PlayerList.vue')
 const User = () => import(/* webpackChunkName: 'user' */ 'components/User.vue')
 const About = () => import(/* webpackChunkName: 'about' */ 'components/About.vue')
+const RecorderList = () => import(/* webpackChunkName: 'recorders' */ 'components/RecorderList.vue')
 
 Vue.use(Router);
 

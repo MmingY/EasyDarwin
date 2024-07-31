@@ -149,6 +149,8 @@ func Init() (err error) {
 		if len(mp4Path) != 0 {
 			Router.Use(static.Serve("/record", static.LocalFile(mp4Path, true)))
 			Router.GET("/record/download/*anyPath", API.RecordDownload)
+			Router.GET("/record/query/:liveID", API.RecordQuery)
+			Router.GET("/record/query/", API.RecordQuery)
 		}
 
 	}

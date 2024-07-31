@@ -13,6 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/EasyDarwin/EasyDarwin/models"
+	"github.com/EasyDarwin/EasyDarwin/repositories"
+	"github.com/penggy/EasyGoLib/db"
 	"github.com/penggy/EasyGoLib/utils"
 )
 
@@ -86,7 +89,9 @@ func (server *Server) Start() (err error) {
 			case pusher, addChnOk = <-server.addPusherCh:
 				if SaveStreamToLocal {
 					if addChnOk {
-						dir := path.Join(m3u8_dir_path, pusher.Path(), time.Now().Format("20060102"), time.Now().Format("20060102150405"))
+						currentTime := time.Now()
+						liveFilePath := path.Join(pusher.Path(), currentTime.Format("20060102"), currentTime.Format("20060102150405"))
+						dir := path.Join(m3u8_dir_path, liveFilePath)
 						err := utils.EnsureDir(dir)
 						if err != nil {
 							logger.Printf("EnsureDir:[%s] err:%v.", dir, err)
@@ -116,6 +121,27 @@ func (server *Server) Start() (err error) {
 						}
 						pusher2ffmpegMap[pusher] = cmd
 						logger.Printf("add ffmpeg [%v] to pull stream from pusher[%v]", cmd, pusher)
+
+						repository := repositories.GetUserRepository(db.SQLite.DB())
+						if repository != nil {
+							record := models.Record{
+								// ID:                     pusher.ID(),
+								LiveID:     strings.Replace(pusher.Path(), "/", "", -1),
+								LiveName:   pusher.Path(),
+								LiveUrl:    rtsp,
+								FileMp4:    "",
+								HlsUrl:     path.Join("/record", liveFilePath, fmt.Sprintf("record.m3u8")),
+								FileRecord: m3u8path,
+								CreateTime: currentTime.Format("2006-01-02 15:04:05"),
+								UpdateTime: currentTime.Format("2006-01-02 15:04:05"),
+							}
+							if err := repository.CreateRecord(record); err != nil {
+								logger.Printf("database CreateRecord err:%v", err)
+							}
+						} else {
+							logger.Printf("database GetUserRepository err:%v", err)
+						}
+
 					} else {
 						logger.Printf("addPusherChan closed")
 					}

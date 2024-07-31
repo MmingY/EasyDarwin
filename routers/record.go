@@ -16,7 +16,10 @@ import (
 
 	"path"
 
+	"github.com/EasyDarwin/EasyDarwin/models"
+	"github.com/EasyDarwin/EasyDarwin/repositories"
 	"github.com/gin-gonic/gin"
+	"github.com/penggy/EasyGoLib/db"
 	"github.com/penggy/EasyGoLib/utils"
 )
 
@@ -192,7 +195,7 @@ func (h *APIHandler) RecordFiles(c *gin.Context) {
 }
 
 /**
- * @api {get} /api/v1/record/vie0s 录像回放
+ * @api {get} /record/download/*anyPath 录像m3u8合成mp4文件,并下载
  * @apiGroup record
  * @apiName RecordVie0s
  */
@@ -248,5 +251,42 @@ func (h *APIHandler) RecordDownload(c *gin.Context) {
 	if _, err := io.Copy(c.Writer, file); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+}
+
+/**
+ * @api {get} /record/query/:id 录像m3u8合成mp4文件,并下载
+ * @apiGroup record
+ * @apiName RecordVie0s
+ */
+func (h *APIHandler) RecordQuery(c *gin.Context) {
+	liveID := c.Param("liveID")
+	repositories := repositories.GetUserRepository(db.SQLite.DB())
+	if len(liveID) == 0 {
+		if records, err := repositories.GetRecords(); err == nil {
+			response := struct {
+				List []models.Record `json:"list"`
+			}{
+				List: records,
+			}
+			c.JSON(http.StatusOK, response)
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	if records, err := repositories.GetRecordsByLiveID(liveID); err == nil {
+		// c.JSON(http.StatusOK, record)
+		response := struct {
+			liveId string          `json:"liveID"`
+			List   []models.Record `json:"list"`
+		}{
+			liveId: liveID,
+			List:   records,
+		}
+		c.JSON(http.StatusOK, response)
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
 }

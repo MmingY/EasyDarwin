@@ -33,19 +33,24 @@ const router = new Router({
                     component: PlayerList,
                     props: true
                 }, {
+                    path: 'recorders/:page?',
+                    component: RecorderList,
+                    props: true
+                }
+                , {
                     path: 'users/:page?',
                     component: User,
-                    props: true                    
+                    props: true
                 }, {
                     path: 'about',
                     component: About
-                }, {     
+                }, {
                     path: 'logout',
                     async beforeEnter(to, from, next) {
-                      await store.dispatch("logout");
-                      window.location.href = `/login.html`;
+                        await store.dispatch("logout");
+                        window.location.href = `/login.html`;
                     }
-                }, {                                   
+                }, {
                     path: '*',
                     redirect: '/'
                 }
@@ -65,17 +70,17 @@ router.beforeEach(async (to, from, next) => {
             return;
         }
     } else {
-        var roles = userInfo.roles||[];
+        var roles = userInfo.roles || [];
         var menus = store.state.menus.reduce((pval, cval) => {
             pval[cval.path] = cval;
             return pval;
-        },{})
+        }, {})
         var _roles = [];
         var menu = menus[to.path];
-        if(menu) {
-            _roles.push(...(menu.roles||[]));
+        if (menu) {
+            _roles.push(...(menu.roles || []));
         }
-        if(_roles.length > 0 && !_roles.some(val => {
+        if (_roles.length > 0 && !_roles.some(val => {
             return roles.indexOf(val) >= 0;
         })) {
             return;

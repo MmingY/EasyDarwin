@@ -60,5 +60,8 @@
     "webpack-cli": "^3.3.12",
     "@vue/cli-service": "4.5.13",
     "webpack-dev-server": "2.11.2"
+  },
+  "dependencies": {
+    "hls.js": "^1.5.13"
   }
 }

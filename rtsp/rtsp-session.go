@@ -144,12 +144,13 @@ func NewSession(server *Server, conn net.Conn) *Session {
 	authorizationEnable := utils.Conf().Section("rtsp").Key("authorization_enable").MustInt(0)
 	close_old := utils.Conf().Section("rtsp").Key("close_old").MustInt(0)
 	debugLogEnable := utils.Conf().Section("rtsp").Key("debug_log_enable").MustInt(0)
+	location, _ := time.LoadLocation("Asia/Shanghai")
 	session := &Session{
 		ID:                  shortid.MustGenerate(),
 		Server:              server,
 		Conn:                timeoutTCPConn,
 		connRW:              bufio.NewReadWriter(bufio.NewReaderSize(timeoutTCPConn, networkBuffer), bufio.NewWriterSize(timeoutTCPConn, networkBuffer)),
-		StartAt:             time.Now(),
+		StartAt:             time.Now().In(location),
 		Timeout:             utils.Conf().Section("rtsp").Key("timeout").MustInt(0),
 		authorizationEnable: authorizationEnable != 0,
 		debugLogEnable:      debugLogEnable != 0,
@@ -189,6 +190,7 @@ func (session *Session) Stop() {
 }
 
 func (session *Session) Start() {
+	location, _ := time.LoadLocation("Asia/Shanghai")
 	defer session.Stop()
 	buf1 := make([]byte, 1)
 	buf2 := make([]byte, 2)
@@ -223,10 +225,10 @@ func (session *Session) Start() {
 					Type:   RTP_TYPE_AUDIO,
 					Buffer: rtpBuf,
 				}
-				elapsed := time.Now().Sub(timer)
+				elapsed := time.Now().In(location).Sub(timer)
 				if elapsed >= 30*time.Second {
 					logger.Println("Recv an audio RTP package")
-					timer = time.Now()
+					timer = time.Now().In(location)
 				}
 			case session.aRTPControlChannel:
 				pack = &RTPPack{
@@ -238,10 +240,10 @@ func (session *Session) Start() {
 					Type:   RTP_TYPE_VIDEO,
 					Buffer: rtpBuf,
 				}
-				elapsed := time.Now().Sub(timer)
+				elapsed := time.Now().In(location).Sub(timer)
 				if elapsed >= 30*time.Second {
 					logger.Println("Recv an video RTP package")
-					timer = time.Now()
+					timer = time.Now().In(location)
 				}
 			case session.vRTPControlChannel:
 				pack = &RTPPack{

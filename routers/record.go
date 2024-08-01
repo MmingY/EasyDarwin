@@ -18,6 +18,7 @@ import (
 
 	"github.com/EasyDarwin/EasyDarwin/models"
 	"github.com/EasyDarwin/EasyDarwin/repositories"
+	uutils "github.com/EasyDarwin/EasyDarwin/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/penggy/EasyGoLib/db"
 	"github.com/penggy/EasyGoLib/utils"
@@ -261,13 +262,25 @@ func (h *APIHandler) RecordDownload(c *gin.Context) {
  */
 func (h *APIHandler) RecordQuery(c *gin.Context) {
 	liveID := c.Param("liveID")
+	pageStart, _ := strconv.Atoi(c.DefaultQuery("start", "0"))
+	pageLimit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	sortBy := c.DefaultQuery("sort", "create_time")
+	order := c.DefaultQuery("order", "descending")
+	q := c.DefaultQuery("q", "")
+	if strings.Contains(order, "asc") { //ascending
+		order = "asc"
+	} else if strings.Contains(order, "desc") { //descending
+		order = "desc"
+	}
 	repositories := repositories.GetUserRepository(db.SQLite.DB())
 	if len(liveID) == 0 {
-		if records, err := repositories.GetRecords(); err == nil {
+		if records, total, err := repositories.GetRecords(sortBy, order, pageLimit, pageStart, q); err == nil {
 			response := struct {
-				List []models.Record `json:"list"`
+				List  []models.Record `json:"list"`
+				Total int             `json:"total"`
 			}{
-				List: records,
+				List:  records,
+				Total: total,
 			}
 			c.JSON(http.StatusOK, response)
 		} else {
@@ -279,13 +292,40 @@ func (h *APIHandler) RecordQuery(c *gin.Context) {
 	if records, err := repositories.GetRecordsByLiveID(liveID); err == nil {
 		// c.JSON(http.StatusOK, record)
 		response := struct {
-			liveId string          `json:"liveID"`
+			LiveId string          `json:"liveID"`
 			List   []models.Record `json:"list"`
+			Total  int             `json:"total"`
 		}{
-			liveId: liveID,
+			LiveId: liveID,
 			List:   records,
 		}
 		c.JSON(http.StatusOK, response)
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+}
+
+/**
+ * @api {get} /record/query/:id 录像m3u8合成mp4文件,并下载
+ * @apiGroup record
+ * @apiName RecordVie0s
+ */
+func (h *APIHandler) RecordRemove(c *gin.Context) {
+	id := c.Param("id")
+	repositories := repositories.GetUserRepository(db.SQLite.DB())
+
+	var record models.Record
+	var err error
+
+	if record, err = repositories.GetRecordsById(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err = repositories.DeleteRecord(id); err == nil {
+		parentPath := filepath.Dir(record.FileRecord)
+		uutils.RemoveAll(parentPath)
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
 	} else {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}

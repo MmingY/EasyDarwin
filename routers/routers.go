@@ -151,6 +151,7 @@ func Init() (err error) {
 			Router.GET("/record/download/*anyPath", API.RecordDownload)
 			Router.GET("/record/query/:liveID", API.RecordQuery)
 			Router.GET("/record/query/", API.RecordQuery)
+			Router.DELETE("/record/remove/:id", API.RecordRemove)
 		}
 
 	}

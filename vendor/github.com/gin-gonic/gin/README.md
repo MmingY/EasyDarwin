@@ -1174,7 +1174,8 @@ r.GET("/test2", func(c *gin.Context) {
 ```go
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		t := time.Now()
+		location, _ := time.LoadLocation("Asia/Shanghai")
+		t := time.Now().In(location)
 
 		// Set example variable
 		c.Set("example", "12345")

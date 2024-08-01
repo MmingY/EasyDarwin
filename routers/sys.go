@@ -47,7 +47,8 @@ func init() {
 			case <-ticker.C:
 				mem, _ := mem.VirtualMemory()
 				cpu, _ := cpu.Percent(0, false)
-				now := utils.DateTime(time.Now())
+				location, _ := time.LoadLocation("Asia/Shanghai")
+				now := utils.DateTime(time.Now().In(location))
 				memData = append(memData, PercentData{Time: now, Used: mem.UsedPercent / 100})
 				cpuData = append(cpuData, PercentData{Time: now, Used: cpu[0] / 100})
 				pusherData = append(pusherData, CountData{Time: now, Total: uint(rtsp.GetServer().GetPusherSize())})

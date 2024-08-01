@@ -41,7 +41,7 @@
             <template slot-scope="scope">
               <div class="operation-buttons">
                 <el-button @click="playVideo(scope.row.hls_url)" size="mini" type="primary">播放</el-button>
-                <el-button @click="deleteRecord(scope.row)" size="mini" type="danger">删除</el-button>
+                <el-button @click="deleteRecord(scope.row.id)" size="mini" type="danger">删除</el-button>
               </div>
             </template>
           </el-table-column>
@@ -54,7 +54,7 @@
     </div>
 
     <el-dialog custom-class="my-dialog" title="录像回放" :visible.sync="dialogVisible" width="50%" height="40%"
-      :before-close="handleBeforeClose" style="font-weight:bold;" center>
+      :before-close="handleBeforeClose" style="font-weight:bold;">
       <video ref="videoPlayer" v-if="currentVideo" :src="currentVideo" controls autoplay
         style="width: 100%;height:100%"></video>
     </el-dialog>
@@ -64,6 +64,7 @@
 <script>
 import prettyBytes from "pretty-bytes";
 import Hls from 'hls.js';
+import { MessageBox, Message } from 'element-ui';
 
 import _ from "lodash";
 export default {
@@ -71,13 +72,17 @@ export default {
   data() {
     return {
       total: 0,          // 用于分页的总条目数
-      pageSize: 1,
+      pageSize: 10,
       code: "",
       msg: "OK",
       data: [],
       dialogVisible: false,
       currentVideo: "",
       records: [],
+      currentPage: 1,
+      q: "",
+      sort: "create_time",
+      order: "descending",
     };
   },
   beforeDestroy() {
@@ -89,7 +94,7 @@ export default {
   mounted() {
     this.$refs["q"].focus();
     this.timer = setInterval(() => {
-      this.getPlayers();
+      this.getRecords();
     }, 3000);
   },
   watch: {
@@ -122,16 +127,51 @@ export default {
         }
       });
     },
-    getPlayers() {
+    getRecords() {
       //  $.get("/api/v1/record").then(data => {
-      // $.get("/record").then(data => {
-      $.get("/record/query").then(data => {
+      $.get("/record/query", {
+        q: this.q,
+        start: (this.currentPage - 1) * this.pageSize,
+        limit: this.pageSize,
+        sort: this.sort,
+        order: this.order
+      }).then(data => {
         this.records = data.list;
-        this.total = data.list.length;
+        this.total = data.total;
         /*  if (0 === data.code) {
            this.records = data.data;
          } */
       });
+    },
+    deleteRecord(recordId) {
+      console.log("deleteRecord", recordId);
+      // 弹出确认对话框
+      MessageBox.confirm('是否确定删除该录像?', '警告', {
+        confirmButtonText: '是',
+        cancelButtonText: '否',
+        type: 'warning'
+      }).then(() => {
+        $.ajax({
+          url: '/record/remove/' + recordId, // 替换为你的 API 端点
+          type: 'DELETE', // 请求方法
+          success: function (response) {
+            // 从记录中移除被删除的数据
+            this.records = this.records.filter(item => item.id !== recordId);
+            // 请求成功
+            Message({
+              type: 'success',
+              message: '录像被删除成功'
+            });
+          }.bind(this),
+          error: function (xhr, status, error) {
+            // 显示错误消息
+            Message({
+              type: 'error',
+              message: 'Failed to delete resource.${error}'
+            });
+          }
+        });
+      }).catch(() => { });
     },
     handleBeforeClose(done) {
       // 在弹窗关闭前执行的逻辑
@@ -146,7 +186,7 @@ export default {
       var query = {};
       if (this.q) query["q"] = this.q;
       this.$router.replace({
-        path: `/players/${page}`,
+        path: `/recorders/${page}`,
         query: query
       });
     },
@@ -156,7 +196,7 @@ export default {
     sortChange(data) {
       this.sort = data.prop;
       this.order = data.order;
-      this.getPlayers();
+      this.getRecords();
     },
     formatBytes(row, col, val) {
       if (val == undefined) return "-";
@@ -174,8 +214,8 @@ export default {
     this.$nextTick(() => {
       this.q = to.query.q || "";
       this.currentPage = parseInt(to.params.page) || 1;
-      this.players = [];
-      this.getPlayers();
+      this.records = [];
+      this.getRecords();
     });
   }
 };

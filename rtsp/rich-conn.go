@@ -12,7 +12,8 @@ type RichConn struct {
 
 func (conn *RichConn) Read(b []byte) (n int, err error) {
 	if conn.timeout > 0 {
-		conn.Conn.SetReadDeadline(time.Now().Add(conn.timeout))
+		location, _ := time.LoadLocation("Asia/Shanghai")
+		conn.Conn.SetReadDeadline(time.Now().In(location).Add(conn.timeout))
 	} else {
 		var t time.Time
 		conn.Conn.SetReadDeadline(t)
@@ -22,7 +23,8 @@ func (conn *RichConn) Read(b []byte) (n int, err error) {
 
 func (conn *RichConn) Write(b []byte) (n int, err error) {
 	if conn.timeout > 0 {
-		conn.Conn.SetWriteDeadline(time.Now().Add(conn.timeout))
+		location, _ := time.LoadLocation("Asia/Shanghai")
+		conn.Conn.SetWriteDeadline(time.Now().In(location).Add(conn.timeout))
 	} else {
 		var t time.Time
 		conn.Conn.SetWriteDeadline(t)

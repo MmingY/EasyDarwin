@@ -89,16 +89,21 @@ func (server *Server) Start() (err error) {
 			case pusher, addChnOk = <-server.addPusherCh:
 				if SaveStreamToLocal {
 					if addChnOk {
-						currentTime := time.Now()
+						location, err := time.LoadLocation("Asia/Shanghai")
+						if err != nil {
+							logger.Printf("LoadLocation err:%v", err)
+							continue
+						}
+						currentTime := time.Now().In(location)
 						liveFilePath := path.Join(pusher.Path(), currentTime.Format("20060102"), currentTime.Format("20060102150405"))
 						dir := path.Join(m3u8_dir_path, liveFilePath)
-						err := utils.EnsureDir(dir)
+						err = utils.EnsureDir(dir)
 						if err != nil {
 							logger.Printf("EnsureDir:[%s] err:%v.", dir, err)
 							continue
 						}
 
-						m3u8path := path.Join(dir, fmt.Sprintf("record.m3u8"))
+						m3u8path := path.Join(dir, "record.m3u8")
 						port := pusher.Server().TCPPort
 						rtsp := fmt.Sprintf("rtsp://localhost:%d%s", port, pusher.Path())
 						paramStr := utils.Conf().Section("rtsp").Key(pusher.Path()).MustString("-c:v copy -c:a aac")
@@ -110,7 +115,7 @@ func (server *Server) Start() (err error) {
 						// ffmpeg -i ~/Downloads/720p.mp4 -s 640x360 -g 15 -c:a aac -hls_time 5 -hls_list_size 0 record.m3u8
 						//ffmpeg -fflags genpts -rtsp_transport tcp -i rtsp://localhost:554/live/1 -hls_time 6 -hls_list_size 0 -c:v copy -c:a aac ~/opt/video/record/20210825/out.m3u8
 						cmd := exec.Command(ffmpeg, params...)
-						f, err := os.OpenFile(path.Join(dir, fmt.Sprintf("log.txt")), os.O_RDWR|os.O_CREATE, 0755)
+						f, err := os.OpenFile(path.Join(dir, "log.txt"), os.O_RDWR|os.O_CREATE, 0755)
 						if err == nil {
 							cmd.Stdout = f
 							cmd.Stderr = f

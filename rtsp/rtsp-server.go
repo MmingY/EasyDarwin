@@ -13,6 +13,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/EasyDarwin/EasyDarwin/models"
+	"github.com/EasyDarwin/EasyDarwin/repositories"
+	"github.com/penggy/EasyGoLib/db"
 	"github.com/penggy/EasyGoLib/utils"
 )
 
@@ -29,7 +32,7 @@ type Server struct {
 
 var (
 	instance *Server
-	once sync.Once
+	once     sync.Once
 )
 
 func GetServer() *Server {
@@ -59,7 +62,7 @@ func (server *Server) Start() (err error) {
 		return
 	}
 
-	localRecord := utils.Conf().Section("rtsp").Key("save_stream_to_local").MustInt(0)
+	localRecord := utils.Conf().Section("rtsp").Key("save_stream_to_local").MustInt(2)
 	ffmpeg := utils.Conf().Section("rtsp").Key("ffmpeg_path").MustString("")
 	m3u8_dir_path := utils.Conf().Section("rtsp").Key("m3u8_dir_path").MustString("")
 	ts_duration_second := utils.Conf().Section("rtsp").Key("ts_duration_second").MustInt(6)
@@ -86,13 +89,21 @@ func (server *Server) Start() (err error) {
 			case pusher, addChnOk = <-server.addPusherCh:
 				if SaveStreamToLocal {
 					if addChnOk {
-						dir := path.Join(m3u8_dir_path, pusher.Path(), time.Now().Format("20060102"))
-						err := utils.EnsureDir(dir)
+						location, err := time.LoadLocation("Asia/Shanghai")
+						if err != nil {
+							logger.Printf("LoadLocation err:%v", err)
+							continue
+						}
+						currentTime := time.Now().In(location)
+						liveFilePath := path.Join(pusher.Path(), currentTime.Format("20060102"), currentTime.Format("20060102150405"))
+						dir := path.Join(m3u8_dir_path, liveFilePath)
+						err = utils.EnsureDir(dir)
 						if err != nil {
 							logger.Printf("EnsureDir:[%s] err:%v.", dir, err)
 							continue
 						}
-						m3u8path := path.Join(dir, fmt.Sprintf("out.m3u8"))
+
+						m3u8path := path.Join(dir, "record.m3u8")
 						port := pusher.Server().TCPPort
 						rtsp := fmt.Sprintf("rtsp://localhost:%d%s", port, pusher.Path())
 						paramStr := utils.Conf().Section("rtsp").Key(pusher.Path()).MustString("-c:v copy -c:a aac")
@@ -102,8 +113,9 @@ func (server *Server) Start() (err error) {
 							params = append(params[:6], append(paramsOfThisPath, params[6:]...)...)
 						}
 						// ffmpeg -i ~/Downloads/720p.mp4 -s 640x360 -g 15 -c:a aac -hls_time 5 -hls_list_size 0 record.m3u8
+						//ffmpeg -fflags genpts -rtsp_transport tcp -i rtsp://localhost:554/live/1 -hls_time 6 -hls_list_size 0 -c:v copy -c:a aac ~/opt/video/record/20210825/out.m3u8
 						cmd := exec.Command(ffmpeg, params...)
-						f, err := os.OpenFile(path.Join(dir, fmt.Sprintf("log.txt")), os.O_RDWR|os.O_CREATE, 0755)
+						f, err := os.OpenFile(path.Join(dir, "log.txt"), os.O_RDWR|os.O_CREATE, 0755)
 						if err == nil {
 							cmd.Stdout = f
 							cmd.Stderr = f
@@ -114,6 +126,27 @@ func (server *Server) Start() (err error) {
 						}
 						pusher2ffmpegMap[pusher] = cmd
 						logger.Printf("add ffmpeg [%v] to pull stream from pusher[%v]", cmd, pusher)
+
+						repository := repositories.GetUserRepository(db.SQLite.DB())
+						if repository != nil {
+							record := models.Record{
+								// ID:                     pusher.ID(),
+								LiveID:     strings.Replace(pusher.Path(), "/", "", -1),
+								LiveName:   pusher.Path(),
+								LiveUrl:    rtsp,
+								FileMp4:    "",
+								HlsUrl:     path.Join("/record", liveFilePath, fmt.Sprintf("record.m3u8")),
+								FileRecord: m3u8path,
+								CreateTime: currentTime.Format("2006-01-02 15:04:05"),
+								UpdateTime: currentTime.Format("2006-01-02 15:04:05"),
+							}
+							if err := repository.CreateRecord(record); err != nil {
+								logger.Printf("database CreateRecord err:%v", err)
+							}
+						} else {
+							logger.Printf("database GetUserRepository err:%v", err)
+						}
+
 					} else {
 						logger.Printf("addPusherChan closed")
 					}

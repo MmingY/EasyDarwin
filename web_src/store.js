@@ -23,9 +23,13 @@ const store = new Vuex.Store({
                 title: "拉流列表",
                 icon: "play"
             }, {
+                path: '/recorders',
+                title: "录像",
+                icon: "video-camera"
+            }, {
                 path: "/about",
                 icon: "support",
-                title: "版本信息"                
+                title: "版本信息"
             }, {
                 path: "/apidoc",
                 target: "blank",
@@ -42,8 +46,8 @@ const store = new Vuex.Store({
             state.userInfo = userInfo;
         }
     },
-    actions : {
-        getServerInfo({commit}){
+    actions: {
+        getServerInfo({ commit }) {
             return new Promise((resolve, reject) => {
                 $.get('/api/v1/serverinfo').then(serverInfo => {
                     commit('updateServerInfo', serverInfo);
@@ -62,7 +66,7 @@ const store = new Vuex.Store({
                     resolve(null);
                 })
             })
-        },   
+        },
         logout({ commit, state }) {
             return new Promise((resolve, reject) => {
                 $.get('/api/v1/logout').then(data => {

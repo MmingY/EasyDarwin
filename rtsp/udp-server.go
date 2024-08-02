@@ -115,16 +115,17 @@ func (s *UDPServer) SetupAudio() (err error) {
 		return
 	}
 	go func() {
+		location, _ := time.LoadLocation("Asia/Shanghai")
 		bufUDP := make([]byte, UDP_BUF_SIZE)
 		logger.Printf("udp server start listen audio port[%d]", s.APort)
 		defer logger.Printf("udp server stop listen audio port[%d]", s.APort)
 		timer := time.Unix(0, 0)
 		for !s.Stoped {
 			if n, _, err := s.AConn.ReadFromUDP(bufUDP); err == nil {
-				elapsed := time.Now().Sub(timer)
+				elapsed := time.Now().In(location).Sub(timer)
 				if elapsed >= 30*time.Second {
 					logger.Printf("Package recv from AConn.len:%d\n", n)
-					timer = time.Now()
+					timer = time.Now().In(location)
 				}
 				rtpBytes := make([]byte, n)
 				s.AddInputBytes(n)
@@ -211,6 +212,7 @@ func (s *UDPServer) SetupVideo() (err error) {
 		return
 	}
 	go func() {
+		location, _ := time.LoadLocation("Asia/Shanghai")
 		bufUDP := make([]byte, UDP_BUF_SIZE)
 		logger.Printf("udp server start listen video port[%d]", s.VPort)
 		defer logger.Printf("udp server stop listen video port[%d]", s.VPort)
@@ -218,10 +220,10 @@ func (s *UDPServer) SetupVideo() (err error) {
 		for !s.Stoped {
 			var n int
 			if n, _, err = s.VConn.ReadFromUDP(bufUDP); err == nil {
-				elapsed := time.Now().Sub(timer)
+				elapsed := time.Now().In(location).Sub(timer)
 				if elapsed >= 30*time.Second {
 					logger.Printf("Package recv from VConn.len:%d\n", n)
-					timer = time.Now()
+					timer = time.Now().In(location)
 				}
 				rtpBytes := make([]byte, n)
 				s.AddInputBytes(n)

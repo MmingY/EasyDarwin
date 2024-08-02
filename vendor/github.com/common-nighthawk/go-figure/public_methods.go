@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-//stdout
+// stdout
 func (fig figure) Print() {
 	for _, printRow := range fig.Slicify() {
 		fmt.Println(printRow)
@@ -23,10 +23,11 @@ func (fig figure) String() string {
 }
 
 func (fig figure) Scroll(duration, stillness int, direction string) {
-	endTime := time.Now().Add(time.Duration(duration) * time.Millisecond)
+	location, _ := time.LoadLocation("Asia/Shanghai")
+	endTime := time.Now().In(location).Add(time.Duration(duration) * time.Millisecond)
 	fig.phrase = fig.phrase + "   "
 	clearScreen()
-	for time.Now().Before(endTime) {
+	for time.Now().In(location).Before(endTime) {
 		var shiftedPhrase string
 		chars := []byte(fig.phrase)
 		if strings.HasPrefix(strings.ToLower(direction), "r") {
@@ -45,9 +46,10 @@ func (fig figure) Blink(duration, timeOn, timeOff int) {
 	if timeOff < 0 {
 		timeOff = timeOn
 	}
-	endTime := time.Now().Add(time.Duration(duration) * time.Millisecond)
+	location, _ := time.LoadLocation("Asia/Shanghai")
+	endTime := time.Now().In(location).Add(time.Duration(duration) * time.Millisecond)
 	clearScreen()
-	for time.Now().Before(endTime) {
+	for time.Now().In(location).Before(endTime) {
 		fig.Print()
 		sleep(timeOn)
 		clearScreen()
@@ -56,7 +58,8 @@ func (fig figure) Blink(duration, timeOn, timeOff int) {
 }
 
 func (fig figure) Dance(duration, freeze int) {
-	endTime := time.Now().Add(time.Duration(duration) * time.Millisecond)
+	location, _ := time.LoadLocation("Asia/Shanghai")
+	endTime := time.Now().In(location).Add(time.Duration(duration) * time.Millisecond)
 	font := fig.font //TODO: change to deep copy
 	font.evenLetters()
 	figures := []figure{figure{font: font}, figure{font: font}}
@@ -68,7 +71,7 @@ func (fig figure) Dance(duration, freeze int) {
 			figures[f].phrase = figures[f].phrase + appenders[f]
 		}
 	}
-	for p := 0; time.Now().Before(endTime); p ^= 1 {
+	for p := 0; time.Now().In(location).Before(endTime); p ^= 1 {
 		figures[p].Print()
 		figures[1-p].Print()
 		sleep(freeze)
@@ -76,14 +79,14 @@ func (fig figure) Dance(duration, freeze int) {
 	}
 }
 
-//writers
+// writers
 func Write(w io.Writer, fig figure) {
 	for _, printRow := range fig.Slicify() {
 		fmt.Fprintf(w, "%v\n", printRow)
 	}
 }
 
-//helpers
+// helpers
 func clearScreen() {
 	fmt.Print("\033[H\033[2J")
 }

@@ -76,7 +76,8 @@ func LoggerWithWriter(out io.Writer, notlogged ...string) HandlerFunc {
 
 	return func(c *Context) {
 		// Start timer
-		start := time.Now()
+		location, _ := time.LoadLocation("Asia/Shanghai")
+		start := time.Now().In(location)
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
 

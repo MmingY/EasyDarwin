@@ -2,8 +2,10 @@ package routers
 
 import (
 	"bytes"
+	"io"
 	"log"
 	"math"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +14,13 @@ import (
 	"strings"
 	"time"
 
+	"path"
+
+	"github.com/EasyDarwin/EasyDarwin/models"
+	"github.com/EasyDarwin/EasyDarwin/repositories"
+	uutils "github.com/EasyDarwin/EasyDarwin/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/penggy/EasyGoLib/db"
 	"github.com/penggy/EasyGoLib/utils"
 )
 
@@ -185,4 +193,140 @@ func (h *APIHandler) RecordFiles(c *gin.Context) {
 	}
 	pr.Slice(form.Start, form.Limit)
 	c.IndentedJSON(200, pr)
+}
+
+/**
+ * @api {get} /record/download/*anyPath 录像m3u8合成mp4文件,并下载
+ * @apiGroup record
+ * @apiName RecordVie0s
+ */
+func (h *APIHandler) RecordDownload(c *gin.Context) {
+	ffmpeg := utils.Conf().Section("rtsp").Key("ffmpeg_path").MustString("")
+	m3u8_dir_path := utils.Conf().Section("rtsp").Key("m3u8_dir_path").MustString("")
+	// 提取 /user 之后的部分
+	// userPath := requestPath[len("/record/download/"):]
+	// userPath := strings.Replace(c.Request.URL.Path, "/record/download/", "", 1)
+	userPath := c.Param("anyPath")
+	pathslice := strings.Split(userPath, "/")
+	var fileName string
+	if len(pathslice[len(pathslice)-1]) == 0 {
+		fileName = pathslice[len(pathslice)-2]
+	} else {
+		fileName = pathslice[len(pathslice)-1]
+	}
+	// fileMp4 := m3u8_dir_path + userPath + fileName + ".mp4"
+	fileMp4 := path.Join(m3u8_dir_path, userPath, fileName+".mp4")
+	fileM3u8 := path.Join(m3u8_dir_path, userPath, "record.m3u8")
+	//ffmpeg -i input.m3u8 -c copy output.mp4
+	params := []string{"-i", fileM3u8, "-c", "copy", fileMp4}
+	cmd := exec.Command(ffmpeg, params...)
+	err := cmd.Start()
+	if err != nil {
+		log.Printf("Start ffmpeg err:%v", err)
+	}
+
+	//发送mp4文件给客户端
+	file, err := os.Open(fileMp4)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("Open mp4 err:%v", err)
+		return
+	}
+	defer file.Close()
+
+	// Get the file size and content type
+	fileInfo, err := file.Stat()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	fileSize := fileInfo.Size()
+	contentType := "video/mp4"
+
+	// Set the response headers
+	c.Header("Content-Disposition", "attachment; filename="+filepath.Base(fileMp4))
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Length", strconv.FormatInt(fileSize, 10))
+
+	// Send the file content
+	if _, err := io.Copy(c.Writer, file); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+}
+
+/**
+ * @api {get} /record/query/:id 录像m3u8合成mp4文件,并下载
+ * @apiGroup record
+ * @apiName RecordVie0s
+ */
+func (h *APIHandler) RecordQuery(c *gin.Context) {
+	liveID := c.Param("liveID")
+	pageStart, _ := strconv.Atoi(c.DefaultQuery("start", "0"))
+	pageLimit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	sortBy := c.DefaultQuery("sort", "create_time")
+	order := c.DefaultQuery("order", "descending")
+	q := c.DefaultQuery("q", "")
+	if strings.Contains(order, "asc") { //ascending
+		order = "asc"
+	} else if strings.Contains(order, "desc") { //descending
+		order = "desc"
+	}
+	repositories := repositories.GetUserRepository(db.SQLite.DB())
+	if len(liveID) == 0 {
+		if records, total, err := repositories.GetRecords(sortBy, order, pageLimit, pageStart, q); err == nil {
+			response := struct {
+				List  []models.Record `json:"list"`
+				Total int             `json:"total"`
+			}{
+				List:  records,
+				Total: total,
+			}
+			c.JSON(http.StatusOK, response)
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	if records, err := repositories.GetRecordsByLiveID(liveID); err == nil {
+		// c.JSON(http.StatusOK, record)
+		response := struct {
+			LiveId string          `json:"liveID"`
+			List   []models.Record `json:"list"`
+			Total  int             `json:"total"`
+		}{
+			LiveId: liveID,
+			List:   records,
+		}
+		c.JSON(http.StatusOK, response)
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
+}
+
+/**
+ * @api {get} /record/query/:id 录像m3u8合成mp4文件,并下载
+ * @apiGroup record
+ * @apiName RecordVie0s
+ */
+func (h *APIHandler) RecordRemove(c *gin.Context) {
+	id := c.Param("id")
+	repositories := repositories.GetUserRepository(db.SQLite.DB())
+
+	var record models.Record
+	var err error
+
+	if record, err = repositories.GetRecordsById(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err = repositories.DeleteRecord(id); err == nil {
+		parentPath := filepath.Dir(record.FileRecord)
+		uutils.RemoveAll(parentPath)
+		c.JSON(http.StatusOK, gin.H{"message": "success"})
+	} else {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	}
 }

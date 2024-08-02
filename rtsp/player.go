@@ -3,30 +3,31 @@ package rtsp
 import (
 	"sync"
 	"time"
+
 	"github.com/penggy/EasyGoLib/utils"
 )
 
 type Player struct {
 	*Session
-	Pusher *Pusher
-	cond   *sync.Cond
-	queue  []*RTPPack
-	queueLimit int
+	Pusher               *Pusher
+	cond                 *sync.Cond
+	queue                []*RTPPack
+	queueLimit           int
 	dropPacketWhenPaused bool
-	paused bool
+	paused               bool
 }
 
 func NewPlayer(session *Session, pusher *Pusher) (player *Player) {
 	queueLimit := utils.Conf().Section("rtsp").Key("player_queue_limit").MustInt(0)
 	dropPacketWhenPaused := utils.Conf().Section("rtsp").Key("drop_packet_when_paused").MustInt(0)
 	player = &Player{
-		Session: session,
-		Pusher:  pusher,
-		cond:    sync.NewCond(&sync.Mutex{}),
-		queue:   make([]*RTPPack, 0),
-		queueLimit: queueLimit,
+		Session:              session,
+		Pusher:               pusher,
+		cond:                 sync.NewCond(&sync.Mutex{}),
+		queue:                make([]*RTPPack, 0),
+		queueLimit:           queueLimit,
 		dropPacketWhenPaused: dropPacketWhenPaused != 0,
-		paused:  false,
+		paused:               false,
 	}
 	session.StopHandles = append(session.StopHandles, func() {
 		pusher.RemovePlayer(player)
@@ -50,7 +51,7 @@ func (player *Player) QueueRTP(pack *RTPPack) *Player {
 		player.queue = player.queue[1:]
 		if player.debugLogEnable {
 			len := len(player.queue)
-			logger.Printf("Player %s, QueueRTP, exceeds limit(%d), drop %d old packets, current queue.len=%d\n", player.String(), player.queueLimit, oldLen - len, len)
+			logger.Printf("Player %s, QueueRTP, exceeds limit(%d), drop %d old packets, current queue.len=%d\n", player.String(), player.queueLimit, oldLen-len, len)
 		}
 	}
 	player.cond.Signal()
@@ -85,10 +86,11 @@ func (player *Player) Start() {
 		if err := player.SendRTP(pack); err != nil {
 			logger.Println(err)
 		}
-		elapsed := time.Now().Sub(timer)
+		location, _ := time.LoadLocation("Asia/Shanghai")
+		elapsed := time.Now().In(location).Sub(timer)
 		if player.debugLogEnable && elapsed >= 30*time.Second {
 			logger.Printf("Player %s, Send a package.type:%d, queue.len=%d\n", player.String(), pack.Type, queueLen)
-			timer = time.Now()
+			timer = time.Now().In(location)
 		}
 	}
 }

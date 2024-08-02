@@ -14,6 +14,7 @@
   "author": "penggy",
   "license": "ISC",
   "devDependencies": {
+    "@webpack-cli/serve": "^2.0.5",
     "admin-lte": "2.4.3",
     "babel-core": "6.26.0",
     "babel-loader": "7.1.4",
@@ -56,6 +57,11 @@
     "vue-template-compiler": "2.5.16",
     "vuex": "3.0.1",
     "webpack": "3.11.0",
-    "webpack-dev-server": "5.0.4"
+    "webpack-cli": "^3.3.12",
+    "@vue/cli-service": "4.5.13",
+    "webpack-dev-server": "2.11.2"
+  },
+  "dependencies": {
+    "hls.js": "^1.5.13"
   }
 }

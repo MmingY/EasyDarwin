@@ -75,6 +75,7 @@ func NewRTSPClient(server *Server, rawUrl string, sendOptionMillis int64, agent 
 		return
 	}
 	debugLogEnable := utils.Conf().Section("rtsp").Key("debug_log_enable").MustInt(0)
+	location, _ := time.LoadLocation("Asia/Shanghai")
 	client = &RTSPClient{
 		Server:               server,
 		Stoped:               false,
@@ -87,7 +88,7 @@ func NewRTSPClient(server *Server, rawUrl string, sendOptionMillis int64, agent 
 		aRTPChannel:          2,
 		aRTPControlChannel:   3,
 		OptionIntervalMillis: sendOptionMillis,
-		StartAt:              time.Now(),
+		StartAt:              time.Now().In(location),
 		Agent:                agent,
 		debugLogEnable:       debugLogEnable != 0,
 	}
@@ -346,13 +347,14 @@ func (client *RTSPClient) requestStream(timeout time.Duration) (err error) {
 }
 
 func (client *RTSPClient) startStream() {
-	startTime := time.Now()
-	loggerTime := time.Now().Add(-10 * time.Second)
+	location, _ := time.LoadLocation("Asia/Shanghai")
+	startTime := time.Now().In(location)
+	loggerTime := time.Now().In(location).Add(-10 * time.Second)
 	defer client.Stop()
 	for !client.Stoped {
 		if client.OptionIntervalMillis > 0 {
 			if time.Since(startTime) > time.Duration(client.OptionIntervalMillis)*time.Millisecond {
-				startTime = time.Now()
+				startTime = time.Now().In(location)
 				headers := make(map[string]string)
 				headers["Require"] = "implicit-play"
 				// An OPTIONS request returns the request types the server will accept.
@@ -429,10 +431,10 @@ func (client *RTSPClient) startStream() {
 					client.lastRtpSN = rtpSN
 				}
 
-				elapsed := time.Now().Sub(loggerTime)
+				elapsed := time.Now().In(location).Sub(loggerTime)
 				if elapsed >= 30*time.Second {
 					client.logger.Printf("%v read rtp frame.", client)
-					loggerTime = time.Now()
+					loggerTime = time.Now().In(location)
 				}
 			}
 

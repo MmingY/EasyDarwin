@@ -106,11 +106,13 @@ func ConfFile() string {
 	if Exist(ConfFileDev()) {
 		return ConfFileDev()
 	}
-	return filepath.Join(CWD(), strings.ToLower(EXEName())+".ini")
+	// return filepath.Join(CWD(), strings.ToLower(EXEName())+".ini")
+	return filepath.Join(CWD(), "easydarwin.ini")
 }
 
 func ConfFileDev() string {
-	return filepath.Join(CWD(), strings.ToLower(EXEName())+".dev.ini")
+	// return filepath.Join(CWD(), strings.ToLower(EXEName())+".dev.ini")
+	return filepath.Join(CWD(), "easydarwin.ini")
 }
 
 var FlagVarDBFile string
@@ -122,11 +124,13 @@ func DBFile() string {
 	if Exist(DBFileDev()) {
 		return DBFileDev()
 	}
-	return filepath.Join(CWD(), strings.ToLower(EXEName()+".db"))
+	// return filepath.Join(CWD(), strings.ToLower(EXEName()+".db"))
+	return filepath.Join(CWD(), "easydarwin.db")
 }
 
 func DBFileDev() string {
-	return filepath.Join(CWD(), strings.ToLower(EXEName())+".dev.db")
+	// return filepath.Join(CWD(), strings.ToLower(EXEName())+".dev.db")
+	return filepath.Join(CWD(), "easydarwin.db")
 }
 
 var conf *ini.File
@@ -135,7 +139,8 @@ func Conf() *ini.File {
 	if conf != nil {
 		return conf
 	}
-	if _conf, err := ini.InsensitiveLoad(ConfFile()); err != nil {
+	path := ConfFile()
+	if _conf, err := ini.InsensitiveLoad(path); err != nil {
 		_conf, _ = ini.LoadSources(ini.LoadOptions{Insensitive: true}, []byte(""))
 		conf = _conf
 	} else {

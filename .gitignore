@@ -2,11 +2,12 @@
 /easydarwin
 /EasyDarwin.exe
 /EasyDarwin.exe~
+EasyDarwin
 /logs
 /*.log
 node_modules
-*.db
 *.db.bak
+*.exe
 /*.zip
 /*.tar.gz
 /*.dev.ini

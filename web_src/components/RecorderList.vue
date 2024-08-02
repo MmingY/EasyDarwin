@@ -42,6 +42,7 @@
               <div class="operation-buttons">
                 <el-button @click="playVideo(scope.row.hls_url)" size="mini" type="primary">播放</el-button>
                 <el-button @click="deleteRecord(scope.row.id)" size="mini" type="danger">删除</el-button>
+                <el-button @click="downloadRecord(scope.row.hls_url)" size="mini" type="warning">下载</el-button>
               </div>
             </template>
           </el-table-column>
@@ -107,7 +108,7 @@ export default {
   },
   methods: {
     playVideo(path) {
-      this.currentVideo = "http://localhost:8080" + path;
+      this.currentVideo = path;
       this.dialogVisible = true;
 
       this.$nextTick(() => {
@@ -142,6 +143,22 @@ export default {
            this.records = data.data;
          } */
       });
+    },
+    downloadRecord(hslPath) {
+      //"/record/ccc/20240802/20240802090544/record.m3u8"
+      console.log("downloadRecord", hslPath);
+      // Step 1: 去掉文件名和扩展名 "/record/ccc/20240802/20240802090544"
+      let pathWithoutFile = hslPath.slice(0, hslPath.lastIndexOf('/'));
+
+      // Step 2: 在路径中插入 "/download"
+      let finalPath = pathWithoutFile.replace("/record", "/record/download");
+      // 实现下载视频的逻辑
+      const link = document.createElement('a');
+      link.href = finalPath;
+      link.download = 'video.mp4'; // 可以根据实际情况设置下载文件的名称
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     },
     deleteRecord(recordId) {
       console.log("deleteRecord", recordId);

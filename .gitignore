@@ -5,6 +5,7 @@
 EasyDarwin
 /logs
 /*.log
+*.tar
 node_modules
 *.db.bak
 *.exe

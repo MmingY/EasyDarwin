@@ -30,7 +30,6 @@ jobs:
       run: |
         ls
         pwd
-        cd EasyDarwin  # 替换为你的 Go 项目目录
         go build -o easydarwin
 
     - name: Set up Node.js

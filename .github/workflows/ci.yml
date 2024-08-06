@@ -1,0 +1,53 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        platform: [amd64, arm64]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: 1.19
+
+    - name: Build Go application
+      run: |
+        cd go_project_directory  # 替换为你的 Go 项目目录
+        go build -o easydarwin
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+
+    - name: Install Node.js dependencies and build Vue app
+      run: |
+        cd vue_project_directory  # 替换为你的 Vue 项目目录
+        npm install
+        npm run build
+
+    - name: Build Docker image
+      run: |
+        docker build --platform ${{ matrix.platform }} -t your-dockerhub-username/easydarwin:${{ matrix.platform }} .
+        docker tag your-dockerhub-username/easydarwin:${{ matrix.platform }} your-dockerhub-username/easydarwin:latest
+
+    - name: Push Docker image
+      run: |
+        echo "${{ secrets.DOCKER_HUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_HUB_USERNAME }}" --password-stdin
+        docker push your-dockerhub-username/easydarwin:${{ matrix.platform }}
+        docker push your-dockerhub-username/easydarwin:latest

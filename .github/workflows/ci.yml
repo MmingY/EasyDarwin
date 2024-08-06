@@ -1,3 +1,4 @@
+
 name: CI/CD Pipeline
 
 on:
@@ -27,7 +28,9 @@ jobs:
 
     - name: Build Go application
       run: |
-        cd go_project_directory  # 替换为你的 Go 项目目录
+        ls
+        pwd
+        cd EasyDarwin  # 替换为你的 Go 项目目录
         go build -o easydarwin
 
     - name: Set up Node.js
@@ -37,7 +40,7 @@ jobs:
 
     - name: Install Node.js dependencies and build Vue app
       run: |
-        cd vue_project_directory  # 替换为你的 Vue 项目目录
+        cd web_src  # 替换为你的 Vue 项目目录
         npm install
         npm run build
 

@@ -17,11 +17,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - run: ls
-    - run: cd web_src
-    - run: ls
-    - run: cd web_src
-    - run: ls
-    - run: npm install 
-    - run: npm run build
+    - name: Build web project
+      run: |
+          pwd
+          ls
+          cd web_src
+          pwd
+          ls
+          npm install
+          npm run build
 

@@ -17,7 +17,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - run: npm --version
+    - run: ls
+    - run: cd web_src
+    - run: ls
     - run: cd web_src
     - run: ls
     - run: npm install 
